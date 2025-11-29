@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Extrato Completo</h2>
+
+<div class="card card-dash">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Valor</th>
+                        <th>Tipo</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mov in movimentacoes %}
+                    <tr>
+                        <td>{{ mov.data.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ mov.descricao }}</td>
+                        <td>
+                            {{ mov.categoria }} <br>
+                            <small class="text-muted">{{ mov.subcategoria }}</small>
+                        </td>
+                        <td class="{{ 'text-success fw-bold' if mov.tipo == 'receita' else 'text-danger fw-bold' }}">
+                            R$ {{ "%.2f"|format(mov.valor) }}
+                        </td>
+                        <td>
+                            {% if mov.tipo == 'receita' %}
+                                <span class="badge bg-success">Entrada</span>
+                            {% else %}
+                                <span class="badge bg-danger">Saída</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/excluir/{{ mov.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Tem certeza?');">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
