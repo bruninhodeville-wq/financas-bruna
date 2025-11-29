@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Estilos exclusivos do Dashboard */
+    .card-dash {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        background: white;
+        height: 100%;
+    }
+    .text-xs { font-size: .8rem; text-transform: uppercase; font-weight: 700; }
+    .text-value { font-size: 1.5rem; font-weight: 700; color: #5a5c69; }
+    .card-body-icon { position: absolute; right: 15px; top: 20px; font-size: 2.5rem; opacity: 0.3; }
+</style>
+
+<h2 class="mb-4 text-gray-800">Visão Geral</h2>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card card-dash border-start border-4 border-success">
+            <div class="card-body position-relative">
+                <div class="text-xs text-success mb-1">Receitas (Mês)</div>
+                <div class="text-value">R$ {{ "%.2f"|format(receita_mes) }}</div>
+                <i class="bi bi-arrow-up-circle-fill card-body-icon text-success"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card card-dash border-start border-4 border-danger">
+            <div class="card-body position-relative">
+                <div class="text-xs text-danger mb-1">Despesas (Mês)</div>
+                <div class="text-value">R$ {{ "%.2f"|format(despesa_mes) }}</div>
+                <i class="bi bi-arrow-down-circle-fill card-body-icon text-danger"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card card-dash border-start border-4 border-info">
+            <div class="card-body position-relative">
+                <div class="text-xs text-info mb-1">Saldo (Mês)</div>
+                <div class="text-value">R$ {{ "%.2f"|format(saldo_mes) }}</div>
+                <i class="bi bi-wallet2 card-body-icon text-info"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card card-dash border-start border-4 border-warning">
+            <div class="card-body position-relative">
+                <div class="text-xs text-warning mb-1">Acumulado (Ano)</div>
+                <div class="text-value">R$ {{ "%.2f"|format(saldo_geral) }}</div>
+                <i class="bi bi-piggy-bank-fill card-body-icon text-warning"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card card-dash mb-4">
+            <div class="card-header py-3 bg-white border-bottom-0">
+                <h6 class="m-0 font-weight-bold text-primary">Fluxo de Caixa</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="graficoEvolucao"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card card-dash mb-4">
+            <div class="card-header py-3 bg-white border-bottom-0">
+                <h6 class="m-0 font-weight-bold text-primary">Gastos por Categoria</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="graficoCategoria"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="/novo" class="btn btn-primary rounded-circle d-md-none" 
+   style="position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; font-size: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 999;">
+    <i class="bi bi-plus"></i>
+</a>
+
+<script>
+    Chart.defaults.font.family = "'Segoe UI', 'Helvetica', 'Arial', sans-serif";
+    
+    // Gráfico Barras
+    const ctxEvolucao = document.getElementById('graficoEvolucao').getContext('2d');
+    new Chart(ctxEvolucao, {
+        type: 'bar',
+        data: {
+            labels: JSON.parse('{{ meses_labels | safe }}'),
+            datasets: [{
+                label: 'Receitas',
+                data: JSON.parse('{{ receitas_mes | safe }}'),
+                backgroundColor: '#1cc88a', borderRadius: 4
+            }, {
+                label: 'Despesas',
+                data: JSON.parse('{{ despesas_mes | safe }}'),
+                backgroundColor: '#e74a3b', borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // Gráfico Pizza
+    const dadosCat = JSON.parse('{{ categorias_json | safe }}');
+    const ctxCat = document.getElementById('graficoCategoria').getContext('2d');
+    new Chart(ctxCat, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(dadosCat),
+            datasets: [{
+                data: Object.values(dadosCat),
+                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796']
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '70%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+        }
+    });
+</script>
+{% endblock %}
