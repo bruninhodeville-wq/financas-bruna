@@ -1,42 +1,232 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="col-md-4">
-        <div class="card shadow border-0" style="border-radius: 15px;">
-            <div class="card-body p-5">
-                <div class="text-center mb-4">
-                    <h1 class="h3 mb-3 fw-normal">👋 Bem-vinda!</h1>
-                    <p class="text-muted">Faça login para controlar suas finanças</p>
-                </div>
+<style>
+    /* FUNDO MODERNO */
+    body {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-                {% endwith %}
+    /* CARD DE LOGIN */
+    .login-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        overflow: visible; /* Permite que o gato saia pra fora do card */
+        position: relative;
+        padding: 40px;
+        width: 100%;
+        max-width: 400px;
+        margin-top: 60px; /* Espaço para o gato */
+    }
 
-                <form method="POST">
-                    <div class="form-floating mb-3">
-                        <input type="text" name="username" class="form-control" id="floatingInput" placeholder="Usuário" required>
-                        <label for="floatingInput">Usuário</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="password" name="password" class="form-control" id="floatingPassword" placeholder="Senha" required>
-                        <label for="floatingPassword">Senha</label>
-                    </div>
+    /* O GATO (SVG ANIMADO) */
+    .cat-wrapper {
+        position: absolute;
+        top: -80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 160px;
+        height: 140px;
+    }
 
-                    <button class="w-100 btn btn-lg btn-primary mb-3" type="submit">Entrar</button>
-                    
-                    <div class="d-flex justify-content-between text-small">
-                        <a href="/register" class="text-decoration-none">Criar Conta</a>
-                        <a href="/recuperar" class="text-decoration-none text-muted">Esqueceu a senha?</a>
-                    </div>
-                </form>
+    /* Partes do Gato */
+    .cat-face {
+        fill: #ffffff; /* Gato Branco */
+        stroke: #e0e0e0;
+        stroke-width: 2px;
+    }
+    .cat-ear { fill: #ffffff; stroke: #e0e0e0; stroke-width: 2px; }
+    .cat-inner-ear { fill: #ffcdd2; }
+    .cat-eye { fill: #333; }
+    .cat-nose { fill: #ff8a80; }
+    .cat-mouth { stroke: #333; fill: none; stroke-width: 2px; }
+    
+    /* Patas (Mãos) */
+    .cat-paw {
+        fill: #ffffff;
+        stroke: #e0e0e0;
+        stroke-width: 2px;
+        position: absolute;
+        width: 40px;
+        height: 45px;
+        border-radius: 50%;
+        bottom: -10px;
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        z-index: 10;
+    }
+    .paw-left { left: 30px; transform: translateY(120px); } /* Posição inicial (escondida) */
+    .paw-right { right: 30px; transform: translateY(120px); }
+
+    /* ESTADOS DA ANIMAÇÃO */
+    
+    /* 1. Cobrir os olhos (Ao clicar na senha) */
+    .cat-wrapper.shy .paw-left {
+        transform: translateY(45px) rotate(-10deg); /* Sobe a pata */
+        left: 35px;
+    }
+    .cat-wrapper.shy .paw-right {
+        transform: translateY(45px) rotate(10deg); /* Sobe a pata */
+        right: 35px;
+    }
+
+    /* 2. Espiar (Ao clicar no olhinho) */
+    .cat-wrapper.peek .paw-left {
+        transform: translateY(45px) rotate(-10deg); /* Mantém fechado */
+    }
+    .cat-wrapper.peek .paw-right {
+        transform: translateY(80px) rotate(20deg); /* Abaixa uma pata para espiar */
+    }
+
+    /* CAMPO DE SENHA COM OLHO */
+    .password-container {
+        position: relative;
+    }
+    .toggle-password {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+        z-index: 5;
+    }
+    .toggle-password:hover { color: #4e73df; }
+
+    /* FORMULÁRIO */
+    .form-control {
+        border-radius: 10px;
+        padding: 12px;
+        border: 2px solid #eee;
+        background: #f8f9fc;
+    }
+    .form-control:focus {
+        border-color: #4e73df;
+        box-shadow: none;
+        background: #fff;
+    }
+    .btn-login {
+        border-radius: 10px;
+        padding: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Esconde o menu lateral nesta página sobrescrevendo o CSS do base */
+    #sidebar-wrapper { display: none !important; }
+    #wrapper { justify-content: center; }
+</style>
+
+<div class="login-card">
+    
+    <div class="cat-wrapper" id="cat">
+        <svg viewBox="0 0 200 160">
+            <path class="cat-ear" d="M30,60 L60,10 L90,60 Z" transform="translate(-10,0)"/>
+            <path class="cat-ear" d="M110,60 L140,10 L170,60 Z" transform="translate(10,0)"/>
+            <path class="cat-inner-ear" d="M40,55 L60,25 L80,55 Z" transform="translate(-10,0)"/>
+            <path class="cat-inner-ear" d="M120,55 L140,25 L160,55 Z" transform="translate(10,0)"/>
+            
+            <circle class="cat-face" cx="100" cy="100" r="70" />
+            
+            <circle class="cat-eye" cx="70" cy="90" r="8" />
+            <circle class="cat-eye" cx="130" cy="90" r="8" />
+            
+            <path class="cat-nose" d="M90,115 L110,115 L100,125 Z" />
+            <path class="cat-mouth" d="M100,125 Q80,140 70,125" />
+            <path class="cat-mouth" d="M100,125 Q120,140 130,125" />
+        </svg>
+        
+        <div class="cat-paw paw-left"></div>
+        <div class="cat-paw paw-right"></div>
+    </div>
+
+    <h3 class="text-center mb-4 mt-3 fw-bold text-primary">Acesso Restrito</h3>
+    <p class="text-center text-muted mb-4">Gerenciamento Financeiro</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} text-center" style="font-size: 0.9rem;">
+                {{ message }}
             </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <div class="mb-3">
+            <input type="text" name="username" class="form-control" placeholder="Usuário" required>
         </div>
+        
+        <div class="mb-4 password-container">
+            <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Senha" required>
+            <i class="bi bi-eye-slash-fill toggle-password" id="eyeIcon"></i>
+        </div>
+
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-login btn-lg">Entrar</button>
+        </div>
+    </form>
+    
+    <div class="text-center mt-4">
+        <a href="/register" class="text-decoration-none small text-muted">Criar nova conta</a> | 
+        <a href="/recuperar" class="text-decoration-none small text-muted">Esqueceu a senha?</a>
     </div>
 </div>
+
+<script>
+    const cat = document.getElementById('cat');
+    const passInput = document.getElementById('passwordInput');
+    const eyeIcon = document.getElementById('eyeIcon');
+    let isPeeking = false;
+
+    // 1. Quando clica no campo de senha (Gato cobre os olhos)
+    passInput.addEventListener('focus', () => {
+        if (!isPeeking) {
+            cat.classList.add('shy');
+        }
+    });
+
+    // 2. Quando sai do campo de senha (Gato descobre os olhos)
+    passInput.addEventListener('blur', () => {
+        cat.classList.remove('shy');
+        cat.classList.remove('peek');
+        isPeeking = false;
+        // Reseta o ícone e o tipo se saiu do campo
+        passInput.type = "password";
+        eyeIcon.classList.remove('bi-eye-fill');
+        eyeIcon.classList.add('bi-eye-slash-fill');
+    });
+
+    // 3. Lógica do Olhinho (Gato Espia)
+    eyeIcon.addEventListener('click', (e) => {
+        // Previne que o input perca o foco (para o gato não baixar as mãos)
+        e.preventDefault(); 
+        
+        isPeeking = !isPeeking;
+
+        if (isPeeking) {
+            // MOSTRAR SENHA
+            passInput.type = "text";
+            eyeIcon.classList.remove('bi-eye-slash-fill');
+            eyeIcon.classList.add('bi-eye-fill'); // Olho aberto
+            
+            // Gato Espia (Adiciona classe peek)
+            cat.classList.add('peek');
+        } else {
+            // ESCONDER SENHA
+            passInput.type = "password";
+            eyeIcon.classList.remove('bi-eye-fill');
+            eyeIcon.classList.add('bi-eye-slash-fill'); // Olho fechado
+            
+            // Gato volta a cobrir tudo
+            cat.classList.remove('peek');
+        }
+    });
+</script>
 {% endblock %}

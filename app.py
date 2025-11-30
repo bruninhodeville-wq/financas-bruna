@@ -30,6 +30,15 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# --- CONFIGURAÇÃO DE LOGIN ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# ADICIONE ESTAS DUAS LINHAS:
+login_manager.login_message = "Por favor, faça login para acessar esta página."
+login_manager.login_message_category = "warning"
+
 # --- VALIDAÇÃO DE SENHA FORTE ---
 def validar_senha_forte(senha):
     # Minimo 6 caracteres
