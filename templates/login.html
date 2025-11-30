@@ -2,52 +2,63 @@
 
 {% block content %}
 <style>
-    /* FUNDO MODERNO */
+    /* 1. FUNDO E ESTRUTURA GLOBAL */
     body {
         background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
+        /* Garante que o fundo cubra tudo e remove rolagens */
+        margin: 0;
+        overflow: hidden; 
     }
 
-    /* CARD DE LOGIN CENTRALIZADO */
+    /* 2. FORÇAR A CENTRALIZAÇÃO (Ignorando estrutura do base.html) */
+    #wrapper {
+        min-height: 100vh;       /* Altura total da tela */
+        width: 100vw;            /* Largura total da tela */
+        display: flex;           /* Ativa o Flexbox */
+        align-items: center;     /* Centraliza Verticalmente */
+        justify-content: center; /* Centraliza Horizontalmente */
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Remove espaçamentos internos que empurram o conteúdo */
+    #page-content-wrapper {
+        width: auto !important;
+        padding: 0 !important;
+        flex: none !important;
+    }
+    
+    .container-fluid {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    /* 3. O CARD BRANCO (LOGIN) */
     .login-card {
         background: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
         box-shadow: 0 15px 35px rgba(0,0,0,0.2);
         padding: 40px;
         width: 100%;
-        max-width: 400px; /* Largura ideal para não ficar esticado */
+        max-width: 400px; /* Largura fixa ideal */
+        margin: 0 auto;   /* Garante centro */
+        position: relative;
+        z-index: 10;
     }
 
-    /* LOGO (ICON.PNG) */
+    /* LOGO */
     .login-logo {
-        width: 100px; /* Ajustei para 100px para ficar harmonioso */
+        width: 100px;
         height: auto;
         display: block;
-        margin: 0 auto 20px auto; /* Centraliza horizontalmente */
+        margin: 0 auto 20px auto;
         filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
     }
 
-    /* CAMPO DE SENHA COM OLHO */
-    .password-container {
-        position: relative;
-    }
-    .toggle-password {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        color: #6c757d;
-        z-index: 5;
-        font-size: 1.2rem;
-    }
-    .toggle-password:hover { color: #4e73df; }
-
-    /* FORMULÁRIO */
+    /* CAMPOS DO FORMULÁRIO */
     .form-control {
         border-radius: 10px;
         padding: 12px;
@@ -66,10 +77,19 @@
         text-transform: uppercase;
         letter-spacing: 1px;
     }
-    
-    /* Remove menu lateral nesta tela */
+
+    /* OLHO DA SENHA */
+    .password-container { position: relative; }
+    .toggle-password {
+        position: absolute; right: 15px; top: 50%;
+        transform: translateY(-50%); cursor: pointer; color: #6c757d;
+        font-size: 1.2rem;
+    }
+    .toggle-password:hover { color: #4e73df; }
+
+    /* ESCONDE MENU LATERAL E NAVBARS */
     #sidebar-wrapper { display: none !important; }
-    #wrapper { justify-content: center; }
+    .navbar { display: none !important; }
 </style>
 
 <div class="login-card">
@@ -113,7 +133,7 @@
 </div>
 
 <script>
-    // Lógica do Olhinho (Espiar Senha)
+    // Lógica do Olhinho
     const passInput = document.getElementById('passwordInput');
     const eyeIcon = document.getElementById('eyeIcon');
     let isPeeking = false;
@@ -123,11 +143,11 @@
         isPeeking = !isPeeking;
 
         if (isPeeking) {
-            passInput.type = "text"; // Mostra senha
+            passInput.type = "text";
             eyeIcon.classList.remove('bi-eye-slash-fill');
             eyeIcon.classList.add('bi-eye-fill');
         } else {
-            passInput.type = "password"; // Esconde senha
+            passInput.type = "password";
             eyeIcon.classList.remove('bi-eye-fill');
             eyeIcon.classList.add('bi-eye-slash-fill');
         }
