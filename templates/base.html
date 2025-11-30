@@ -26,10 +26,10 @@
         body {
             background-color: var(--bg-color);
             font-family: 'Segoe UI', Roboto, sans-serif;
-            overflow-x: hidden; /* Evita rolagem lateral no mobile */
+            overflow-x: hidden;
         }
 
-        /* LAYOUT (Sidebar + Conteúdo) */
+        /* LAYOUT */
         #wrapper {
             display: flex;
             width: 100%;
@@ -73,16 +73,14 @@
         /* AJUSTES MOBILE */
         @media (max-width: 768px) {
             #sidebar-wrapper {
-                margin-left: -250px; /* Esconde o menu por padrão no celular */
-                position: fixed; /* Fica por cima do conteúdo */
+                margin-left: -250px;
+                position: fixed;
                 z-index: 1000;
                 height: 100%;
             }
             #sidebar-wrapper.toggled {
-                margin-left: 0; /* Mostra o menu quando ativo */
+                margin-left: 0;
             }
-            
-            /* Ajuste para inputs não darem zoom no iPhone */
             input, select, textarea { font-size: 16px !important; }
         }
     </style>
@@ -90,20 +88,31 @@
 <body>
 
 <div id="wrapper">
+    
+    {% if current_user.is_authenticated %}
     <div id="sidebar-wrapper">
         <div class="sidebar-heading">💰 Finanças</div>
+        
+        <div class="p-3 text-white small text-center bg-dark bg-opacity-25 mb-2">
+            Olá, <strong>{{ current_user.username }}</strong>!
+        </div>
+
         <div class="list-group list-group-flush">
             <a href="/" class="list-group-item list-group-item-action"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
             <a href="/novo" class="list-group-item list-group-item-action"><i class="bi bi-plus-circle-fill me-2"></i> Lançar</a>
             <a href="/extrato" class="list-group-item list-group-item-action"><i class="bi bi-table me-2"></i> Extrato</a>
+            <a href="/logout" class="list-group-item list-group-item-action text-danger mt-3"><i class="bi bi-box-arrow-left me-2"></i> Sair</a>
         </div>
     </div>
+    {% endif %}
 
     <div id="page-content-wrapper">
         
+        {% if current_user.is_authenticated %}
         <nav class="navbar navbar-light bg-transparent mb-4 d-md-none">
             <button class="btn btn-primary" id="menu-toggle"><i class="bi bi-list"></i> Menu</button>
         </nav>
+        {% endif %}
 
         <div class="container-fluid">
             {% block content %}{% endblock %}
@@ -112,7 +121,6 @@
 </div>
 
 <script>
-    // Script para abrir/fechar menu no mobile
     const toggleButton = document.getElementById("menu-toggle");
     if(toggleButton){
         toggleButton.addEventListener("click", function(e) {
