@@ -1,5 +1,6 @@
 import os
 import json
+import re # Biblioteca para validação de senha (Regex)
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -20,7 +21,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- CONFIGURAÇÃO DE LOGIN ---
+# --- LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -29,22 +30,41 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- "O GUARDA" (Bloqueia quem precisa trocar a senha) ---
+# --- VALIDAÇÃO DE SENHA FORTE ---
+def validar_senha_forte(senha):
+    # Minimo 6 caracteres
+    if len(senha) < 6:
+        return False, "A senha deve ter no mínimo 6 caracteres."
+    # Letra Maiúscula
+    if not re.search(r"[A-Z]", senha):
+        return False, "A senha deve conter pelo menos uma letra maiúscula."
+    # Números
+    if not re.search(r"\d", senha):
+        return False, "A senha deve conter pelo menos um número."
+    # Caractere Especial
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", senha):
+        return False, "A senha deve conter pelo menos um caractere especial (!@#$%)."
+    return True, ""
+
+# --- GUARDA DE SEGURANÇA ---
 @app.before_request
 def check_password_change():
     if current_user.is_authenticated and current_user.must_change_password:
-        # Se o usuário tentar acessar qualquer coisa que NÃO seja trocar a senha ou sair
         if request.endpoint not in ['trocar_senha', 'logout', 'static']:
-            flash('Por segurança, você precisa redefinir sua senha antes de continuar.', 'warning')
+            flash('Por segurança, redefina sua senha seguindo os novos critérios.', 'warning')
             return redirect(url_for('trocar_senha'))
 
 # --- MODELOS ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-    recovery_key = db.Column(db.String(100), nullable=True)
-    # NOVA COLUNA: Define se é obrigado a trocar a senha
+    nome_completo = db.Column(db.String(150), nullable=False) # Novo
+    email = db.Column(db.String(150), unique=True, nullable=False) # Novo
+    password = db.Column(db.String(255), nullable=False)
+    
+    # Segurança
+    pergunta_seguranca = db.Column(db.String(200), nullable=False) # Novo
+    resposta_seguranca = db.Column(db.String(255), nullable=False) # Novo (Será hash)
     must_change_password = db.Column(db.Boolean, default=False) 
 
 class Movimentacao(db.Model):
@@ -57,7 +77,6 @@ class Movimentacao(db.Model):
     data = db.Column(db.Date, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) 
 
-# Cria tabelas
 with app.app_context():
     db.create_all()
 
@@ -74,26 +93,46 @@ CATEGORIAS = {
     "Dependentes": ["Escola/Faculdade", "Cursos Extras", "Material escolar", "Esportes/Uniformes", "Mesada", "Passeios/Férias", "Vestuário", "Saúde/Medicamentos", "Outros"]
 }
 
-# --- ROTA DE MIGRAÇÃO ATUALIZADA ---
+# --- LISTA DE PERGUNTAS DE SEGURANÇA ---
+PERGUNTAS_SEGURANCA = [
+    "Qual o nome do seu primeiro animal de estimação?",
+    "Qual a cidade onde seus pais se conheceram?",
+    "Qual o nome da sua escola primária?",
+    "Qual o seu filme favorito?",
+    "Qual o nome de solteira da sua mãe?"
+]
+
+# --- ROTA DE MIGRAÇÃO (ATUALIZADA) ---
 @app.route('/migrar_bruna')
 def migrar_bruna():
     bruna = User.query.filter_by(username='bruna.emanuele').first()
     
-    # Se a Bruna não existir, cria. Se existir, FORÇA a troca de senha.
+    # Senha temporária simples (será forçada a troca)
+    hashed_pw = generate_password_hash('Mudar@123', method='scrypt')
+    # Resposta de segurança padrão para migração
+    hashed_resposta = generate_password_hash('migracao', method='scrypt')
+    
     if not bruna:
-        hashed_pw = generate_password_hash('123456', method='scrypt')
-        bruna = User(username='bruna.emanuele', password=hashed_pw, recovery_key='segredo', must_change_password=True)
+        bruna = User(
+            username='bruna.emanuele', 
+            nome_completo='Bruna Emanuele',
+            email='bruna@email.com', # Email fictício, ela pode mudar no banco se quiser
+            password=hashed_pw, 
+            pergunta_seguranca='Qual o nome do seu primeiro animal de estimação?',
+            resposta_seguranca=hashed_resposta,
+            must_change_password=True
+        )
         db.session.add(bruna)
     else:
-        bruna.must_change_password = True # Força a troca na próxima vez
+        # Se já existir, atualiza para forçar troca
+        bruna.must_change_password = True
         
-    # Migra os lançamentos
     lancamentos_orfãos = Movimentacao.query.filter_by(user_id=None).all()
     for l in lancamentos_orfãos:
         l.user_id = bruna.id
     
     db.session.commit()
-    return "Sucesso! Usuária 'bruna.emanuele' configurada. A troca de senha será exigida no login."
+    return "Sucesso! Usuária migrada. Login: bruna.emanuele / Senha Temp: Mudar@123 (Resposta seg: migracao)"
 
 # --- ROTAS DE AUTENTICAÇÃO ---
 
@@ -106,11 +145,92 @@ def login():
         
         if user and check_password_hash(user.password, password):
             login_user(user)
-            # O @app.before_request vai cuidar de redirecionar se precisar trocar senha
             return redirect(url_for('dashboard'))
         else:
             flash('Login ou senha incorretos.', 'danger')
     return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        # Captura os campos
+        nome = request.form['nome']
+        email = request.form['email']
+        username = request.form['username']
+        password = request.form['password']
+        confirm = request.form['confirm_password']
+        pergunta = request.form['pergunta']
+        resposta = request.form['resposta']
+
+        # 1. Validações Básicas
+        if password != confirm:
+            flash('As senhas não coincidem!', 'danger')
+            return redirect(url_for('register'))
+        
+        # 2. Validação de Senha Forte
+        valida, msg = validar_senha_forte(password)
+        if not valida:
+            flash(msg, 'warning')
+            return redirect(url_for('register'))
+
+        # 3. Verifica duplicidade
+        if User.query.filter((User.username == username) | (User.email == email)).first():
+            flash('Usuário ou E-mail já cadastrados!', 'warning')
+            return redirect(url_for('register'))
+            
+        # 4. Salva no Banco (Criptografando Senha e Resposta)
+        hashed_pw = generate_password_hash(password, method='scrypt')
+        hashed_resp = generate_password_hash(resposta.lower().strip(), method='scrypt') # Salva resposta em minúsculo pra facilitar
+        
+        new_user = User(
+            nome_completo=nome,
+            email=email,
+            username=username, 
+            password=hashed_pw,
+            pergunta_seguranca=pergunta,
+            resposta_seguranca=hashed_resp,
+            must_change_password=False
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        login_user(new_user)
+        flash('Conta criada com sucesso!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    return render_template('register.html', perguntas=PERGUNTAS_SEGURANCA)
+
+@app.route('/recuperar', methods=['GET', 'POST'])
+def recuperar():
+    if request.method == 'POST':
+        username = request.form['username']
+        pergunta_selecionada = request.form['pergunta']
+        resposta_usuario = request.form['resposta']
+        new_password = request.form['new_password']
+        
+        user = User.query.filter_by(username=username).first()
+        
+        # Verifica Usuário + Pergunta Correta + Resposta Correta
+        if user and user.pergunta_seguranca == pergunta_selecionada:
+            if check_password_hash(user.resposta_seguranca, resposta_usuario.lower().strip()):
+                
+                # Valida a nova senha
+                valida, msg = validar_senha_forte(new_password)
+                if not valida:
+                    flash(msg, 'warning')
+                    return render_template('recuperar.html', perguntas=PERGUNTAS_SEGURANCA)
+
+                user.password = generate_password_hash(new_password, method='scrypt')
+                user.must_change_password = False
+                db.session.commit()
+                flash('Senha alterada com sucesso! Faça login.', 'success')
+                return redirect(url_for('login'))
+            else:
+                flash('Resposta de segurança incorreta.', 'danger')
+        else:
+            flash('Usuário não encontrado ou pergunta incorreta.', 'danger')
+            
+    return render_template('recuperar.html', perguntas=PERGUNTAS_SEGURANCA)
 
 @app.route('/trocar_senha', methods=['GET', 'POST'])
 @login_required
@@ -121,60 +241,19 @@ def trocar_senha():
         
         if nova_senha != confirmacao:
             flash('As senhas não coincidem!', 'danger')
-        elif len(nova_senha) < 4:
-            flash('A senha deve ter pelo menos 4 caracteres.', 'warning')
         else:
-            # Salva a nova senha
-            current_user.password = generate_password_hash(nova_senha, method='scrypt')
-            current_user.must_change_password = False # Libera o usuário
-            db.session.commit()
-            flash('Senha atualizada com sucesso! Bem-vinda.', 'success')
-            return redirect(url_for('dashboard'))
+            # Valida Força
+            valida, msg = validar_senha_forte(nova_senha)
+            if not valida:
+                flash(msg, 'warning')
+            else:
+                current_user.password = generate_password_hash(nova_senha, method='scrypt')
+                current_user.must_change_password = False
+                db.session.commit()
+                flash('Senha atualizada! Acesso liberado.', 'success')
+                return redirect(url_for('dashboard'))
             
     return render_template('trocar_senha.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        recovery = request.form['recovery']
-        
-        if User.query.filter_by(username=username).first():
-            flash('Usuário já existe!', 'warning')
-            return redirect(url_for('register'))
-            
-        hashed_pw = generate_password_hash(password, method='scrypt')
-        # Novos usuários não precisam trocar senha logo de cara
-        new_user = User(username=username, password=hashed_pw, recovery_key=recovery, must_change_password=False)
-        db.session.add(new_user)
-        db.session.commit()
-        
-        login_user(new_user)
-        return redirect(url_for('dashboard'))
-        
-    return render_template('register.html')
-
-@app.route('/recuperar', methods=['GET', 'POST'])
-def recuperar():
-    if request.method == 'POST':
-        username = request.form['username']
-        recovery_try = request.form['recovery']
-        new_password = request.form['new_password']
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.recovery_key == recovery_try:
-            user.password = generate_password_hash(new_password, method='scrypt')
-            # Se recuperou, pode exigir troca ou não. Aqui vamos liberar direto.
-            user.must_change_password = False 
-            db.session.commit()
-            flash('Senha alterada com sucesso! Faça login.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash('Usuário ou Palavra-chave incorretos.', 'danger')
-            
-    return render_template('recuperar.html')
 
 @app.route('/logout')
 @login_required
@@ -182,13 +261,12 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- ROTAS DO SISTEMA (PROTEGIDAS) ---
-
+# --- ROTAS DO SISTEMA (IGUAIS) ---
 @app.route('/')
 @login_required
 def dashboard():
     movimentacoes = Movimentacao.query.filter_by(user_id=current_user.id).all()
-    # ... LÓGICA RESUMIDA (MANTENHA A SUA LOGICA PANDAS AQUI) ...
+    # ... Lógica resumida para caber aqui (Use a do código anterior) ...
     if not movimentacoes:
          return render_template('dashboard.html', receita_mes=0, despesa_mes=0, saldo_mes=0, saldo_geral=0, categorias_json="{}", meses_labels="[]", receitas_mes="[]", despesas_mes="[]", user=current_user)
 
@@ -208,7 +286,6 @@ def dashboard():
 
     despesas = df[df['tipo'] == 'despesa']
     por_categoria = despesas.groupby('categoria')['valor'].sum().to_dict() if not despesas.empty else {}
-
     por_mes = df.groupby(['mes_ano', 'tipo'])['valor'].sum().unstack(fill_value=0)
     if 'receita' not in por_mes.columns: por_mes['receita'] = 0
     if 'despesa' not in por_mes.columns: por_mes['despesa'] = 0

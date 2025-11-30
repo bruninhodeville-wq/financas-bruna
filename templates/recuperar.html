@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="col-md-4">
+    <div class="col-md-5">
         <div class="card shadow border-0" style="border-radius: 15px;">
             <div class="card-body p-5">
                 <h3 class="text-center mb-4">🔑 Recuperar Senha</h3>
@@ -20,15 +20,29 @@
                         <label class="form-label">Qual seu Usuário?</label>
                         <input type="text" name="username" class="form-control" required>
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Qual sua Palavra-chave?</label>
-                        <input type="text" name="recovery" class="form-control" required>
+                        <label class="form-label">Selecione sua Pergunta de Segurança</label>
+                        <select name="pergunta" class="form-select" required>
+                            <option value="" selected disabled>Selecione...</option>
+                            {% for p in perguntas %}
+                                <option value="{{ p }}">{{ p }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Sua Resposta</label>
+                        <input type="text" name="resposta" class="form-control" required>
+                    </div>
+                    
                     <hr>
+                    
                     <div class="mb-3">
                         <label class="form-label">Nova Senha</label>
-                        <input type="password" name="new_password" class="form-control" required>
+                        <input type="password" name="new_password" class="form-control" placeholder="Mín 6 chars, Maiúscula, Número, Especial" required>
                     </div>
+                    
                     <div class="d-grid">
                         <button type="submit" class="btn btn-warning text-white">Redefinir Senha</button>
                     </div>
