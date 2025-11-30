@@ -3,3 +3,4 @@ Flask-SQLAlchemy
 pandas
 gunicorn
 psycopg2-binary
+flask-login
